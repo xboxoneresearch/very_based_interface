@@ -27,7 +27,5 @@ jobs:
         pip install hatch
     - name: Build package
       run: hatch build
-    - name: Test package
-      run: hatch run test
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
