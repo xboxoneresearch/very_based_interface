@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "very-based-interface"
+dynamic = ["version"]
+description = ''
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "LukeFZ" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "dissect.cstruct~=4.0.0",
+  "pefile",
+  "typer"
+]
+
+[project.urls]
+Documentation = "https://github.com/xboxoneresearch/very-based-interface#readme"
+Issues = "https://github.com/xboxoneresearch/very-based-interface/issues"
+Source = "https://github.com/xboxoneresearch/very-based-interface"
+
+[tool.hatch.version]
+path = "src/very_based_interface/__about__.py"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/very_based_interface tests}"
+
+[tool.coverage.run]
+source_pkgs = ["very_based_interface", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/very_based_interface/__about__.py",
+]
+
+[tool.coverage.paths]
+very_based_interface = ["src/very_based_interface", "*/very-based-interface/src/very_based_interface"]
+tests = ["tests", "*/very-based-interface/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[mypy]
+disable_error_code = "import-untyped"
+
+[project.scripts]
+vbidump = "very_based_interface.cli:main"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.vscode",
+  "/.github",
+  "/tests"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/very_based_interface"]
