@@ -28,9 +28,9 @@ dependencies = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/xboxoneresearch/very-based-interface#readme"
-Issues = "https://github.com/xboxoneresearch/very-based-interface/issues"
-Source = "https://github.com/xboxoneresearch/very-based-interface"
+Documentation = "https://github.com/xboxoneresearch/very_based_interface#readme"
+Issues = "https://github.com/xboxoneresearch/very_based_interface/issues"
+Source = "https://github.com/xboxoneresearch/very_based_interface"
 
 [tool.hatch.version]
 path = "src/very_based_interface/__about__.py"
