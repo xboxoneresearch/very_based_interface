@@ -842,7 +842,7 @@ class VbiDirectories(IntEnum):
     Unknown5 = 5
     Hash = 6
     Unknown7 = 7
-    MemorySize = 8
+    MemorySize = 8 # version 0 max
     GsCookies = 9
     Aslr = 10
     Unknown11 = 11
@@ -855,12 +855,13 @@ class VbiDirectories(IntEnum):
     MaxDirectory = 17
 
 class VbiVersion(IntEnum):
-    Version1 = 1 # Unsupported, relocations are weird
-    #Version2 = 2 # Not yet seen
+    Version0 = 0 # Unsupported, relocations are weird
+    Version1 = 1 # Unsupported, same as version 1
+    Version2 = 2 # Not yet seen
     Version3 = 3 # Tested, also has weird relocations but they were fixable
-    #Version4 = 4 # Not yet seen
+    Version4 = 4 # Not yet seen
     Version5 = 5 # Tested
-    #Version6 = 6 # Not yet seen
+    Version6 = 6 # Not yet seen
     Version7 = 7 # Tested
 
     MaxVersion = 8

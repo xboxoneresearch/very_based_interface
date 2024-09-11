@@ -23,7 +23,7 @@ class VbiFile(MemoryManager):
         self.set_physical_base(self.header.physical_base_address)
         self.version = self.header.version
 
-        assert self.version != VbiVersion.Version1, "VBIs of version 1 are not supported."
+        assert self.version >= VbiVersion.Version2, "VBIs below version 2 are not supported."
 
         fp.seek(0)
         self.header_data = bytearray(fp.read(self.header.header_size))
