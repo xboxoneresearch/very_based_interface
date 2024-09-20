@@ -11,6 +11,8 @@ class MemoryManager:
     base_page_table_pfn: int
     memory: bytearray
 
+    code_section_pa: int # only used for old (v0/v1) vbis
+
     def set_physical_base(self, base: int):
         self.physical_base_address = self.parse_pa(base).address
 
@@ -22,6 +24,10 @@ class MemoryManager:
 
     def set_memory(self, memory: bytearray):
         self.memory = memory
+
+    @staticmethod
+    def align(addr: int):
+        return ((addr - 1) | (PAGE_SIZE - 1)) + 1
 
     @staticmethod
     def pfn_to_pa(pfn: int):
@@ -61,8 +67,8 @@ class MemoryManager:
         addr = self.parse_pa(pa)
 
         match addr.unknown: # I'm not sure how this is actually supposed to function.
-            case 0xe:
-                return addr.address
+            case 0xe: # only seen in v1 aslr entries, and v0 code section VAs
+                return addr.address + self.code_section_pa - self.physical_base_address
             case 0xc:
                 return addr.address - self.parse_pa(self.header.physical_base_address).address
             case 0x4:
@@ -101,7 +107,8 @@ class MemoryManager:
         pt = read_pte_entry(pd.page_frame_number, addr.pt_index)
 
         assert pt.accessed, "Invalid final PT entry"
-        return self.pfn_to_pa(pt.page_frame_number) + addr.page_offset
+        val = self.pfn_to_pa(pt.page_frame_number) + addr.page_offset
+        return val
 
     def va_to_offset(self, va: int | Structure) -> int:
         return self.pa_to_offset(self.va_to_pa(va))

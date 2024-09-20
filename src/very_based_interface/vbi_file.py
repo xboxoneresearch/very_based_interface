@@ -14,6 +14,9 @@ class VbiFile(MemoryManager):
     version: VbiVersion
     debug_logging: bool
 
+    _environment: Structure
+    _loader_block: Structure
+
     def __init__(self, fp: BinaryIO, debug_logging: bool = False) -> None:
         super().__init__()
         self.debug_logging = debug_logging
@@ -23,7 +26,7 @@ class VbiFile(MemoryManager):
         self.set_physical_base(self.header.physical_base_address)
         self.version = self.header.version
 
-        assert self.version >= VbiVersion.Version2, "VBIs below version 2 are not supported."
+        assert self.version != VbiVersion.Version1, "Version 1 VBIs are not supported."
 
         fp.seek(0)
         self.header_data = bytearray(fp.read(self.header.header_size))
@@ -274,31 +277,40 @@ class VbiFile(MemoryManager):
             current_pdpt_pte += PAGE_SIZE
 
     def load(self) -> None:
-        self._load_aslr()
-        
         env_dir = self.get_directory(VbiDirectories.Environment)
         self._environment = TYPES.VbiDirectoryEnvironment(env_dir)
 
         loader_block_directory = self.get_directory(VbiDirectories.LoaderBlock)
         if loader_block_directory:
-            loader_block = self.load_sized_struct(loader_block_directory, "VbiDirectoryLoaderBlock")
-            self.set_page_table_base(loader_block.kernel_page_table_pa)
+            vbi_loader_block = self.load_sized_struct(loader_block_directory, "VbiDirectoryLoaderBlock")
+            loader_block_va = vbi_loader_block.kernel_loader_block_va
+            self.set_page_table_base(vbi_loader_block.kernel_page_table_pa)
         else:
+            loader_block_va = self._environment.kernel_loader_block_va
             self.set_page_table_base(self._environment.kernel_page_table_pa)
+
+        # the loader block is loaded before aslr is applied - it should never have any relocations
+        self._loader_block = self.read_sized_struct(self.va_to_offset(loader_block_va), "LoaderBlock")
+        loader_block_extension = TYPES.OldLoaderBlockExtension(self.read_virtual(self._loader_block.extension, TYPES.OldLoaderBlockExtension.size))
+
+        # this is either - (a) the code section pa (old vbis), (b) the physical base address (for newer vbis) (c) zero (for the newest vbis)
+        # also note that at some point the loader block becomes similar to the original windoes version, and so this structure becomes invalid
+        # but the value should then always be zero, as thats most of the parameter block in that case
+        if loader_block_extension.code_section_pfn == 0 and loader_block_extension.code_section_page_count == 0:
+            # if this is both 0 there are no code-relative addresses in the page table. we set it to the physical base anyway.
+            self.code_section_pa = self.physical_base_address
+        else:
+            self.code_section_pa = self.pfn_to_pa(loader_block_extension.code_section_pfn)
+
+        self._load_aslr()
 
     def dump_files(self, output_root: str):
         os.makedirs(output_root, exist_ok=True)
+        
+        #def on_memory_descriptor_entry(entry):
+        #    print(f"{entry.memory_type} - {self.print_address(self.pa_to_offset(self.pfn_to_pa(entry.base_page_frame)))} - {self.print_address(self.pa_to_offset(self.pfn_to_pa(entry.base_page_frame + entry.page_count)))}")
 
-        loader_block_va = 0
-
-        loader_block_directory = self.get_directory(VbiDirectories.LoaderBlock)
-        if loader_block_directory:
-            vbi_loader_block = self.load_sized_struct(loader_block_directory, "VbiDirectoryLoaderBlock")
-            loader_block_va = vbi_loader_block.kernel_loader_block_va
-        else:
-            loader_block_va = self._environment.kernel_loader_block_va
-
-        loader_block = self.read_sized_struct(self.va_to_offset(loader_block_va), "LoaderBlock")
+        #self.read_list(loader_block.memory_descriptor_list, TYPES.MemoryDescriptorOld, on_memory_descriptor_entry)s
 
         def on_loader_data_table_entry(entry):
             dll_name = self.read_unicode(entry.base_dll_name)
@@ -315,23 +327,43 @@ class VbiFile(MemoryManager):
                 header[image_base_offset:image_base_offset+0x8] = entry.dll_base.dumps()
                 f.write(header)
 
-                for section in executable.sections:
-                    if section.SizeOfRawData == 0:
-                        continue
+                if self.version >= VbiVersion.Version2:
+                    for section in executable.sections:
+                        if section.SizeOfRawData == 0:
+                            continue
 
-                    current = entry.dll_base + section.VirtualAddress
-                    remaining = section.SizeOfRawData
-                    f.seek(section.PointerToRawData)
+                        current = entry.dll_base + section.VirtualAddress
+                        remaining = section.SizeOfRawData
+                        f.seek(section.PointerToRawData)
 
-                    while remaining != 0:
-                        current_block = min(remaining, executable.OPTIONAL_HEADER.FileAlignment)
-                        data = self.read_virtual(current, current_block)
-                        assert len(data) == current_block, f"Reading at {self.print_address(self.va_to_offset(current))} failed"
+                        while remaining != 0:
+                            current_block = min(remaining, executable.OPTIONAL_HEADER.FileAlignment)
+                            data = self.read_virtual(current, current_block)
+                            assert len(data) == current_block, f"Reading at {self.print_address(self.va_to_offset(current))} failed"
+                            f.write(data)
+                            current += current_block
+                            remaining -= current_block
+                else:
+                    # I seriously doubt that this is how this is supposed to function... but it seems to work
+                    # not sure where the binaries are actually loaded either - maybe the kernel does relocs here instead of the loader?
+                    dll_data_base = self.va_to_offset(entry.dll_base) + PAGE_SIZE
+                    for section in executable.sections:
+                        if section.SizeOfRawData == 0:
+                            continue
+
+                        if (section.Characteristics & 0x20000000) != 0: # if section is executable
+                            # uses the 0xe-type physical addresses, which are code section relative
+                            data = self.read_virtual(entry.dll_base + section.VirtualAddress, section.SizeOfRawData)
+                            assert len(data) == section.SizeOfRawData, f"Reading at offset {self.print_address(self.va_to_offset(entry.dll_base + section.VirtualAddress))} failed"
+                        else:
+                            data = self.read_offset(dll_data_base, section.SizeOfRawData)
+                            assert len(data) == section.SizeOfRawData, f"Reading at offset {self.print_address(self.va_to_offset(section.VirtualAddress))} failed"
+                            dll_data_base += self.align(section.SizeOfRawData)
+                    
+                        f.seek(section.PointerToRawData)
                         f.write(data)
-                        current += current_block
-                        remaining -= current_block
 
             
             print(f"[bold green]success[/]")
 
-        self.read_list(loader_block.load_order_list, TYPES.LoaderDataTableEntry, on_loader_data_table_entry)
+        self.read_list(self._loader_block.load_order_list, TYPES.LoaderDataTableEntry, on_loader_data_table_entry)

@@ -419,6 +419,48 @@ struct LoaderBlock_B8 {
     RtlRbTree memory_descriptor_tree;
 };
 
+struct OldLoaderBlockExtension {
+    uint32 size;
+    uint32 version;
+    uint64 unknown0;
+    uint64 unknown1;
+    uint64 unknown2;
+    uint64 unknown3;
+    ListHead unknown5;
+    uint64 unknown6;
+    uint64 unknown7;
+    uint32 code_section_pfn;
+    uint32 code_section_page_count;
+    ListHead unknown8;
+};
+
+// This struct doesn't appear to be actually c0 bytes in size, but the size field says it is
+struct LoaderBlock_C0 {
+    uint32 os_major_version;
+    uint32 os_minor_version;
+    uint32 size;
+    uint32 os_loader_security_version;
+    uint64 registry_base;
+    uint64 aaaa;
+    ListHead load_order_list; // LoaderDataTableEntry
+    ListHead memory_descriptor_list;
+    ListHead boot_driver_list; // BootDriverListEntry
+    uint64 kernel_stack;
+    uint64 prcb;
+    uint64 process;
+    uint64 thread;
+    uint64 arc_boot_device_name;
+    uint64 arc_hal_device_name;
+    uint64 nt_boot_path_name;
+    uint64 nt_hal_path_name;
+    uint64 load_options;
+    uint64 nls_data;
+    uint64 arc_disk_information;
+    uint64 extension;
+    uint64 unknown19;
+    RtlRbTree memory_descriptor_tree;
+};
+
 struct LoaderDataTableEntry {
     uint64 next; // ListHead in_load_order_links;
     uint64 previous;
@@ -834,7 +876,7 @@ class AslrSectionType(IntEnum):
     KernelImage = 4
 
 class VbiDirectories(IntEnum):
-    Environment = 0
+    Environment = 0 #
     LoaderBlock = 1
     Unknown2 = 2
     ImageRanges = 3
@@ -845,12 +887,12 @@ class VbiDirectories(IntEnum):
     MemorySize = 8 # version 0 max
     GsCookies = 9
     Aslr = 10
-    Unknown11 = 11
+    Unknown11 = 11 # version 1 max
     Unknown12 = 12 # version 2+
     Unknown13 = 13
     Unknown14 = 14
     LoadOptions = 15
-    Unknown16 = 16
+    Unknown16 = 16 # version 7 max
 
     MaxDirectory = 17
 
