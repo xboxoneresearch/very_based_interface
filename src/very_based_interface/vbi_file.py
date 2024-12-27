@@ -280,12 +280,15 @@ class VbiFile(MemoryManager):
 
     def _load_image_ranges(self):
         image_ranges_dir = self.get_directory(VbiDirectories.ImageRanges)
-        if image_ranges_dir is None:
-            return
-
-        image_ranges = TYPES.VbiDirectoryImageRanges(image_ranges_dir)
-        for entry in image_ranges.entries:
-            self.add_aliased_range(entry.alias_source_pa, entry.alias_dest_pa, entry.size)
+        if image_ranges_dir is not None:
+            image_ranges = TYPES.VbiDirectoryImageRanges(image_ranges_dir)
+            for entry in image_ranges.entries:
+                self.add_aliased_range(entry.alias_source_pa, entry.alias_dest_pa, entry.size)
+        else:
+            # default mappings
+            self.add_aliased_range(0x4000000 << PAGE_SHIFT, 0, 0x1000000 << PAGE_SHIFT)
+            self.add_aliased_range(0x8000000 << PAGE_SHIFT, 0, 0x1000000 << PAGE_SHIFT)
+            self.add_aliased_range(0xC000000 << PAGE_SHIFT, 0, 0x1000000 << PAGE_SHIFT)
 
     def load(self) -> None:
         self._load_image_ranges()
