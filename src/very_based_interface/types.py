@@ -42,8 +42,7 @@ union VirtualAddress {
        
 union PhysicalAddress {
     struct {
-        uint64 address : 36;
-        uint64 unknown : 28;
+        uint64 address : 64;
     };
 
     uint64 value;
@@ -680,8 +679,8 @@ struct VbiDirectoryUnknown2 {
 };
 
 struct ImageRangeEntry {
-    uint64 alias_source_pa;
     uint64 alias_dest_pa;
+    uint64 alias_source_pa;
     uint32 size;
     uint32 unk;
 }

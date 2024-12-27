@@ -2,6 +2,13 @@ from .types import TYPES
 from dissect.cstruct import Structure
 from dissect.cstruct.utils import p64, u64
 
+from typing import NamedTuple
+
+class AliasRange(NamedTuple):
+    source: Structure
+    dest: Structure
+    size: int
+
 PAGE_SHIFT = 12
 PAGE_SIZE = 1 << PAGE_SHIFT
 assert PAGE_SIZE == 0x1000
@@ -11,7 +18,7 @@ class MemoryManager:
     base_page_table_pfn: int
     memory: bytearray
 
-    code_section_pa: int # only used for old (v0/v1) vbis
+    aliased_ranges: list[AliasRange]
 
     def set_physical_base(self, base: int):
         self.physical_base_address = self.parse_pa(base).address
@@ -66,17 +73,11 @@ class MemoryManager:
     def pa_to_offset(self, pa: int | Structure) -> int:
         addr = self.parse_pa(pa)
 
-        match addr.unknown: # I'm not sure how this is actually supposed to function.
-            case 0xe: # only seen in v1 aslr entries, and v0 code section VAs
-                return addr.address + self.code_section_pa - self.physical_base_address
-            case 0xc:
-                return addr.address - self.parse_pa(self.header.physical_base_address).address
-            case 0x4:
-                return addr.address - self.physical_base_address
-            case 0x0:
-                return addr.address - self.physical_base_address
-            case _: 
-                assert False, f"Invalid addr: {addr}"
+        aliased_offset = self.get_aliased_dest(addr)
+        if aliased_offset is not None:
+            return self.pa_to_offset(aliased_offset)
+
+        return addr.address - self.physical_base_address
     
     def offset_to_pa(self, offset: int) -> int:
         addr = TYPES.PhysicalAddress()
@@ -119,5 +120,25 @@ class MemoryManager:
     def write_virtual(self, va: int | Structure, data: bytes):
         return self.write_offset(self.va_to_offset(va), data)
 
+    def get_aliased_dest(self, pa: int | Structure) -> int | None:
+        pa = self.parse_pa(pa)
+
+        for range in self.aliased_ranges:
+            src = range.source
+
+            if src.address > pa.address:
+                continue
+
+            if pa.address > src.address + range.size:
+                continue
+
+            return range.dest.value + (pa.address - src.address)
+
+        return None
+
+    def add_aliased_range(self, source_pa: int | Structure, dest_pa: int | Structure, size: int):
+        self.aliased_ranges.append(AliasRange(source=self.parse_pa(source_pa), dest=self.parse_pa(dest_pa), size=size))
+
     def __init__(self) -> None:
+        self.aliased_ranges = []
         pass

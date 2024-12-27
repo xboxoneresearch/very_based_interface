@@ -278,7 +278,18 @@ class VbiFile(MemoryManager):
             current_pdpt_pa += TYPES.PtEntry.size
             current_pdpt_pte += PAGE_SIZE
 
+    def _load_image_ranges(self):
+        image_ranges_dir = self.get_directory(VbiDirectories.ImageRanges)
+        if image_ranges_dir is None:
+            return
+
+        image_ranges = TYPES.VbiDirectoryImageRanges(image_ranges_dir)
+        for entry in image_ranges.entries:
+            self.add_aliased_range(entry.alias_source_pa, entry.alias_dest_pa, entry.size)
+
     def load(self) -> None:
+        self._load_image_ranges()
+
         env_dir = self.get_directory(VbiDirectories.Environment)
         self._environment = TYPES.VbiDirectoryEnvironment(env_dir)
 
@@ -298,11 +309,11 @@ class VbiFile(MemoryManager):
         # this is either - (a) the code section pa (old vbis), (b) the physical base address (for newer vbis) (c) zero (for the newest vbis)
         # also note that at some point the loader block becomes similar to the original windoes version, and so this structure becomes invalid
         # but the value should then always be zero, as thats most of the parameter block in that case
-        if loader_block_extension.code_section_pfn == 0 and loader_block_extension.code_section_page_count == 0:
-            # if this is both 0 there are no code-relative addresses in the page table. we set it to the physical base anyway.
-            self.code_section_pa = self.physical_base_address
-        else:
-            self.code_section_pa = self.pfn_to_pa(loader_block_extension.code_section_pfn)
+        if loader_block_extension.code_section_pfn != 0 or loader_block_extension.code_section_page_count != 0:
+            self.add_aliased_range(0xe000000000, 
+                0x8000000000 | self.pfn_to_pa(loader_block_extension.code_section_pfn),
+                loader_block_extension.code_section_page_count * 0x1000
+            )
 
         self._load_aslr()
 
