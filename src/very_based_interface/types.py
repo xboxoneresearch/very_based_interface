@@ -1,5 +1,5 @@
-from dissect.cstruct import cstruct, p64, u64, Structure
-from enum import IntEnum
+from dissect.cstruct import cstruct, p64, Structure
+from enum import Enum, IntEnum
 
 # not 100% sure about the proper meaning of some of these flags, but the general structure should be correct
 # support for large pages is not guaranteed to work
@@ -895,6 +895,9 @@ class VbiDirectories(IntEnum):
     Unknown16 = 16 # version 7 max
 
     MaxDirectory = 17
+
+class VbiFileMagic(Enum):
+    VBI_MAGIC_CURRENT = b"1IBV"
 
 class VbiVersion(IntEnum):
     Version0 = 0 # Unsupported, relocations are weird

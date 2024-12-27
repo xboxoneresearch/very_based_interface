@@ -1,12 +1,14 @@
-from .types import TYPES, AslrRelocationType, AslrSectionType, VbiDirectories, VbiVersion, va, pa, pte
-from .memory_manager import MemoryManager, PAGE_SHIFT, PAGE_SIZE
+import os
+import pefile
+
 from typing import BinaryIO
 from dissect.cstruct import Structure
 from io import BytesIO
 from dissect.cstruct.utils import u16, u64, p64, dumpstruct
-import os
-import pefile
 from rich import print
+
+from .types import TYPES, AslrRelocationType, AslrSectionType, VbiDirectories, VbiVersion, VbiFileMagic, va, pa, pte
+from .memory_manager import MemoryManager, PAGE_SHIFT, PAGE_SIZE
 
 class VbiFile(MemoryManager):
     header: Structure
@@ -22,7 +24,7 @@ class VbiFile(MemoryManager):
         self.debug_logging = debug_logging
 
         self.header = TYPES.VbiHeader(fp)
-        assert bytes(self.header.magic) == b"1IBV", f"Invalid VBI magic: {bytes(self.header.magic)}"
+        assert bytes(self.header.magic) == VbiFileMagic.VBI_MAGIC_CURRENT.value, f"Invalid VBI magic: {bytes(self.header.magic)}"
         self.set_physical_base(self.header.physical_base_address)
         self.version = self.header.version
 
@@ -131,7 +133,7 @@ class VbiFile(MemoryManager):
                 print(f"ASLRS: Data Length: {hex(len(bytes(section.data)))}")
                 print(f"ASLRS: Data: {bytes(section.data).hex()}")
 
-            assert section.type in [0, 1, 2, 3, 4], f"Invalid ASLR Section type found"
+            assert section.type in [0, 1, 2, 3, 4], "Invalid ASLR Section type found"
 
             if last_section_page_count != 0:
                 if section.type != AslrSectionType.Data:
@@ -364,6 +366,6 @@ class VbiFile(MemoryManager):
                         f.write(data)
 
             
-            print(f"[bold green]success[/]")
+            print("[bold green]success[/]")
 
         self.read_list(self._loader_block.load_order_list, TYPES.LoaderDataTableEntry, on_loader_data_table_entry)
