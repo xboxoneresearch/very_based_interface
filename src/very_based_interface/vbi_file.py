@@ -313,10 +313,16 @@ class VbiFile(MemoryManager):
         # also note that at some point the loader block becomes similar to the original windoes version, and so this structure becomes invalid
         # but the value should then always be zero, as thats most of the parameter block in that case
         if loader_block_extension.code_section_pfn != 0 or loader_block_extension.code_section_page_count != 0:
-            self.add_aliased_range(0xe000000000, 
-                0x8000000000 | self.pfn_to_pa(loader_block_extension.code_section_pfn),
-                loader_block_extension.code_section_page_count * 0x1000
-            )
+            if self.version == VbiVersion.Version0:
+                self.add_aliased_range(0xe000000000, 
+                    self.pfn_to_pa(loader_block_extension.code_section_pfn),
+                    loader_block_extension.code_section_page_count * 0x1000
+                )
+            else:
+                self.add_aliased_range(0xe000000000, 
+                    0x8000000000 | self.pfn_to_pa(loader_block_extension.code_section_pfn),
+                    loader_block_extension.code_section_page_count * 0x1000
+                )
 
         self._load_aslr()
 

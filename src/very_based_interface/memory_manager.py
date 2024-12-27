@@ -129,7 +129,7 @@ class MemoryManager:
             if src.address > pa.address:
                 continue
 
-            if pa.address > src.address + range.size:
+            if pa.address >= src.address + range.size:
                 continue
 
             return range.dest.value + (pa.address - src.address)
