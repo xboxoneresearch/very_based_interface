@@ -457,3 +457,4 @@ _data/
 _logs/
 _out/
 dist/
+tests/private_test.py

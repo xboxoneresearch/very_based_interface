@@ -3,8 +3,7 @@ from enum import Enum, IntEnum
 
 # not 100% sure about the proper meaning of some of these flags, but the general structure should be correct
 # support for large pages is not guaranteed to work
-MEMORY_TYPES = \
-"""
+MEMORY_TYPES = """
 union PtEntry {
     struct {
         uint64 valid : 1;
@@ -49,8 +48,7 @@ union PhysicalAddress {
 };
 """
 # all of these types are grabbed from a windows ntoskrnl pdb
-LOADER_TYPES = \
-"""
+LOADER_TYPES = """
 struct UnicodeString {
     uint16 length;
     uint16 maximum_length;
@@ -598,8 +596,7 @@ struct LoaderParameterExtension {
 }
 """
 
-VBI_TYPES = \
-"""
+VBI_TYPES = """
 struct VbiDirectory {
     uint offset;
     uint size;
@@ -862,10 +859,12 @@ struct VbiDirectoryUnknown16 {
 }
 """
 
+
 class AslrRelocationType(IntEnum):
     Relative = 0
     Absolute = 1
     EnvironmentRelative = 2
+
 
 class AslrSectionType(IntEnum):
     Executable = 0
@@ -874,8 +873,9 @@ class AslrSectionType(IntEnum):
     DebugDriver = 3
     KernelImage = 4
 
+
 class VbiDirectories(IntEnum):
-    Environment = 0 #
+    Environment = 0  #
     LoaderBlock = 1
     Unknown2 = 2
     ImageRanges = 3
@@ -883,32 +883,35 @@ class VbiDirectories(IntEnum):
     Unknown5 = 5
     Hash = 6
     Unknown7 = 7
-    MemorySize = 8 # version 0 max
+    MemorySize = 8  # version 0 max
     GsCookies = 9
     Aslr = 10
-    Unknown11 = 11 # version 1 max
-    Unknown12 = 12 # version 2+
+    Unknown11 = 11  # version 1 max
+    Unknown12 = 12  # version 2+
     Unknown13 = 13
     Unknown14 = 14
     LoadOptions = 15
-    Unknown16 = 16 # version 7 max
+    Unknown16 = 16  # version 7 max
 
     MaxDirectory = 17
+
 
 class VbiFileMagic(Enum):
     VBI_MAGIC_CURRENT = b"1IBV"
 
+
 class VbiVersion(IntEnum):
-    Version0 = 0 # Unsupported, relocations are weird
-    Version1 = 1 # Unsupported, same as version 1
-    Version2 = 2 # Not yet seen
-    Version3 = 3 # Tested, also has weird relocations but they were fixable
-    Version4 = 4 # Not yet seen
-    Version5 = 5 # Tested
-    Version6 = 6 # Not yet seen
-    Version7 = 7 # Tested
+    Version0 = 0  # Unsupported, relocations are weird
+    Version1 = 1  # Unsupported, same as version 1
+    Version2 = 2  # Not yet seen
+    Version3 = 3  # Tested, also has weird relocations but they were fixable
+    Version4 = 4  # Not yet seen
+    Version5 = 5  # Tested
+    Version6 = 6  # Not yet seen
+    Version7 = 7  # Tested
 
     MaxVersion = 8
+
 
 TYPES = cstruct()
 TYPES.load(MEMORY_TYPES, align=False, compiled=True)
@@ -932,14 +935,17 @@ assert TYPES.InstalledMemory.size == 0x10
 assert TYPES.CimfsInformation.size == 0x20
 
 TYPES.load(VBI_TYPES, align=True, compiled=True)
-assert TYPES.LoaderParameterExtension.size == 0xf20
-assert TYPES.LoaderDataTableEntry.size == 0xe0
+assert TYPES.LoaderParameterExtension.size == 0xF20
+assert TYPES.LoaderDataTableEntry.size == 0xE0
+
 
 def pa(addr: int) -> Structure:
     return TYPES.PhysicalAddress(p64(addr))
 
+
 def va(addr: int) -> Structure:
     return TYPES.VirtualAddress(p64(addr))
+
 
 def pte(val: int) -> Structure:
     return TYPES.PtEntry(p64(val))
